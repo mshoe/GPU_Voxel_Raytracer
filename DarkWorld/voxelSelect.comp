@@ -1,0 +1,60 @@
+#version 450 core
+
+layout (local_size_x = 1) in;
+
+layout (binding = 4, std430) buffer voxel_select_buffer
+{
+	uvec4	voxel_select;
+};
+
+uniform vec4 iMouse; // Mouse pixel coords. xy: current, zw: click
+
+
+void ConstructRay(vec2 frag_coord,
+                   out vec3 rs, out vec3 rv); 
+
+void FindStartingVoxel(vec3 rs, vec3 rv,
+								out vec3 rs_onvoxel, 
+                        out int i, out int j, out int k,
+                        out float t);
+
+void RayTrace(vec3 rs, vec3 rv, 
+               inout int i, inout int j, inout int k, 
+               out float t, out vec3 n_dir, out uint blockID);
+
+
+void main() {
+	vec3 rs, rv; // the vectors describing the ray P(t) = S + tV
+
+	// first construct the ray (rs, rv)
+	ConstructRay(iMouse.xy, rs, rv);
+
+	// then find the voxel in the voxel grid the ray starts at
+	float t;
+	int i, j, k;
+	vec3 rs_onvoxel;
+	FindStartingVoxel(rs, rv, rs_onvoxel, i, j, k, t);
+
+	uint blockID = 0;
+	vec3 n_dir; // direction of normal vector
+	if (t > 0.0) {
+		RayTrace(rs_onvoxel, rv, i, j, k, t, n_dir, blockID);
+	}
+
+	if (blockID != 0) {
+		voxel_select.x = i;
+		voxel_select.y = j;
+		voxel_select.z = k;
+		voxel_select.w = blockID;
+	}
+	else {
+		voxel_select.w = 8008;
+	}
+
+#if DEBUG
+	voxel_select.x = 55;
+	voxel_select.y = 25;
+	voxel_select.z = 8008;
+	voxel_select.w = 234;
+#endif
+}
